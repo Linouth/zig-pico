@@ -11,6 +11,15 @@ implemented yet.
 
 Blinky LED :D
 
+## TODOs
+
+- [ ] Figure out how to define the Bootrom aeabi function such that they are
+  called by the compiler.
+- [ ] Find a way to determine at compile time what modules are used (e.g. by
+  checking whether Gpio.init is called in the code) and add some global init
+  that prepare the cpu by clearing reset registers etc.
+- [ ] 
+
 ## Notes
 
 - All peripherals are put in 'reset' state after a hard reset. You cannot write

@@ -1,9 +1,9 @@
 const gpio = @import("gpio.zig");
-
-const RESETS_BASE: u32 = 0x4000c000;
+const pico = @import("pico.zig");
+const timer = @import("timer.zig");
 
 const resets: struct {
-    ptr: *u32 = @intToPtr(*u32, 0x4000c000),
+    ptr: *u32 = @intToPtr(*u32, pico.RESETS_BASE),
 
     const Resets = @This();
 
@@ -58,10 +58,16 @@ pub fn main() void {
 
     const led = gpio.Gpio.init(25, .{});
 
+//    @breakpoint();
+
     while (true) {
         led.toggle();
         busySleep(100_000);
     }
+}
+
+fn timerCb() void {
+    @breakpoint();
 }
 
 fn busySleep(comptime cycles: u32) void {

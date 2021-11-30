@@ -19,6 +19,7 @@ SECTIONS {
         __vector_table_end = .;
 
         *(.text)
+        *(.text*)
     } > RAM
 
     .rodata : {

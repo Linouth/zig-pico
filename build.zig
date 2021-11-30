@@ -20,6 +20,7 @@ pub fn build(b: *std.build.Builder) void {
     //exe.addAssemblyFile("src/crt0.S");
     exe.setTarget(target);
     exe.setBuildMode(mode);
+    exe.addSystemIncludeDir("inc");
     exe.setLinkerScriptPath("simple.ld");
     exe.install();
 

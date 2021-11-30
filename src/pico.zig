@@ -1,0 +1,38 @@
+pub usingnamespace @cImport({
+    @cInclude("hardware/platform_defs.h");
+
+    @cInclude("regs/io_bank0.h");
+    @cInclude("regs/clocks.h");
+    @cInclude("regs/m0plus.h");
+    @cInclude("regs/intctrl.h");
+    @cInclude("regs/io_qspi.h");
+    @cInclude("regs/watchdog.h");
+    @cInclude("regs/pads_bank0.h");
+    @cInclude("regs/vreg_and_chip_reset.h");
+    @cInclude("regs/dreq.h");
+    @cInclude("regs/xip.h");
+    @cInclude("regs/rosc.h");
+    @cInclude("regs/rtc.h");
+    @cInclude("regs/timer.h");
+    @cInclude("regs/uart.h");
+    @cInclude("regs/spi.h");
+    @cInclude("regs/tbman.h");
+    @cInclude("regs/ssi.h");
+    @cInclude("regs/sysinfo.h");
+    @cInclude("regs/syscfg.h");
+    @cInclude("regs/adc.h");
+    @cInclude("regs/addressmap.h");
+    @cInclude("regs/busctrl.h");
+    @cInclude("regs/psm.h");
+    @cInclude("regs/pll.h");
+    @cInclude("regs/pwm.h");
+    @cInclude("regs/pads_qspi.h");
+    @cInclude("regs/resets.h");
+    @cInclude("regs/xosc.h");
+    @cInclude("regs/usb_device_dpram.h");
+    @cInclude("regs/usb.h");
+    @cInclude("regs/sio.h");
+    @cInclude("regs/pio.h");
+    @cInclude("regs/i2c.h");
+    @cInclude("regs/dma.h");
+});

@@ -2,6 +2,7 @@ const std = @import("std");
 const builtin = std.builtin;
 
 const main = @import("main.zig");
+const systickHandler = @import("timer.zig").systickHandler;
 
 const PPB_BASE: u32 = 0xe0000000;
 const VTOR: u32 = 0xed08;
@@ -15,15 +16,18 @@ export fn _entry() linksection(".reset.entry") callconv(.Naked) noreturn {
     vtor.* = @ptrToInt(&__vectors);
 
     asm volatile (
+        // load SP and _reset into r1 and r2
+        \\ldm r0!, {r1, r2}
+        // Configure SP
         \\msr msp, r1
+        // Jump to _reset
         \\bx r2
-        :: [__stack] "{r1}" (@ptrToInt(&__stack)),
-           [_reset] "{r2}" (_reset)
+        :: [__vectors] "{r0}" (&__vectors),
     );
     unreachable;
 }
 
-extern const __bss_start: usize;
+extern var __bss_start: usize;
 extern const __bss_end: usize;
 
 const _wait_for_vector = @intToPtr(fn() noreturn, 0x0137);
@@ -35,11 +39,8 @@ fn _reset() linksection(".reset") callconv(.Naked) noreturn {
     // TODO: Missing data section copy, but not yet needed.
 
     // Clear bss
-    var i: usize = @ptrToInt(&__bss_start);
-    while (i < @ptrToInt(&__bss_end)) : (i += 1) {
-        const bss = @intToPtr(*usize, i);
-        bss.* = 0;
-    }
+    const bss_size = @ptrToInt(&__bss_end) - @ptrToInt(&__bss_start);
+    @memset(@ptrCast([*]u8, &__bss_start), 0, bss_size);
 
     //main.main();
     @call(.{ .modifier = .never_inline }, main.main, .{});
@@ -61,7 +62,8 @@ fn bkptHandler() void {
     @breakpoint();
 }
 
-fn unhandledHandler() void {
+// In .reset section so that it can still reach __vectors
+fn unhandledHandler() linksection(".reset") void {
     var isr: u8 = asm volatile (
         "mrs r0, ipsr"
         : [ret] "={r0}" (-> u8)
@@ -71,7 +73,8 @@ fn unhandledHandler() void {
     @breakpoint();
 
     asm volatile (
-        \\ldr r0, =_reset
+        \\ldr r1, =__vectors
+        \\ldr r0, [r0, #4]
         \\bx r0
     );
 }
@@ -141,5 +144,5 @@ const __vectors linksection(".vector_table") = VectorTable {
     //.hardfault = dummyHandler,
     //.svcall = dummyHandler,
     //.pendsv = dummyHandler,
-    //.systick = dummyHandler,
+    .systick = systickHandler,
 };
