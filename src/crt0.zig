@@ -53,6 +53,8 @@ fn _reset() linksection(".reset") callconv(.Naked) noreturn {
 pub fn panic(msg: []const u8, trace: ?*builtin.StackTrace) noreturn {
     while (true) {
         @breakpoint();
+        _ = msg;
+        _ = trace;
     }
 }
 
@@ -136,7 +138,7 @@ const VectorTable = packed struct {
     irq31: Vector = @intToPtr(Vector, 0xfffffffa),
 };
 
-const __vectors linksection(".vector_table") = VectorTable {
+var __vectors linksection(".vector_table") = VectorTable {
     .stack = 0x20040000,
     //.stack = @ptrToInt(&__stack), // Compiler bug? :C
     .reset = _reset,
@@ -144,5 +146,5 @@ const __vectors linksection(".vector_table") = VectorTable {
     //.hardfault = dummyHandler,
     //.svcall = dummyHandler,
     //.pendsv = dummyHandler,
-    .systick = systickHandler,
+    //.systick = systickHandler,
 };

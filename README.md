@@ -18,7 +18,7 @@ Blinky LED :D
 - [ ] Find a way to determine at compile time what modules are used (e.g. by
   checking whether Gpio.init is called in the code) and add some global init
   that prepare the cpu by clearing reset registers etc.
-- [ ] 
+- [ ] Implement error handler in `crt0.zig`
 
 ## Notes
 

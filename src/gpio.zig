@@ -2,13 +2,13 @@ const pico = @import("pico.zig");
 const sio = @import("sio.zig").sio;
 
 pub const Gpio = struct {
-    pin: comptime u5,
-    mode: comptime Mode,
+    pin: u5,
+    mode: Mode,
 
-    pad: comptime *PadReg,
-    bank: comptime *GpioReg,
+    pad: *PadReg,
+    bank: *GpioReg,
 
-    sio: comptime struct {
+    sio: struct {
         in: *u32,
 
         out: *u32,

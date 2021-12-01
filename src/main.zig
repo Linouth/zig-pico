@@ -33,6 +33,7 @@ const resets: struct {
         uart0 = 1 << 22,
         uart1 = 1 << 23,
         usbctrl = 1 << 24,
+        all = 0xffffffff
     };
 
     fn config(self: Resets, peripherals: []const Peripherals) void {
@@ -40,39 +41,44 @@ const resets: struct {
         for (peripherals) |p| {
             out += @enumToInt(p);
         }
-        self.ptr.* = ~out;
+        self.ptr.* &= ~out;
     }
 
-    fn set(self: Resets, peripheral: Peripheral) void {
+    fn set(self: Resets, peripheral: Peripherals) void {
         self.ptr.* |= @enumToInt(peripheral);
     }
 
-    fn clear(self: Resets, peripheral: Peripheral) void {
+    fn clear(self: Resets, peripheral: Peripherals) void {
         self.ptr.* &= ~@enumToInt(peripheral);
     }
 } = .{};
 
 pub fn main() void {
     // Enable IO_BANK0 and PADS_BANK0 peripherals
-    resets.config(&.{ .io_bank0, .pads_bank0});
+    //resets.config(&.{ .io_bank0, .pads_bank0, .timer });
+    resets.config(&.{ .all });
 
-    const led = gpio.Gpio.init(25, .{});
+    var led = gpio.Gpio.init(25, .{});
 
 //    @breakpoint();
 
+    const alarm = timer.Alarm.init(0, alarmCb, &led) catch unreachable;
+    alarm.arm(.{ .periodic = 10000 });
+
     while (true) {
-        led.toggle();
+        timer.Alarm.irqHandler();
+        //led.toggle();
         busySleep(100_000);
     }
 }
 
-fn timerCb() void {
-    @breakpoint();
+fn alarmCb(context: ?*c_void) void {
+    const led = @ptrCast(*gpio.Gpio, @alignCast(@alignOf(gpio.Gpio), context));
+    led.toggle();
+    //@breakpoint();
 }
 
 fn busySleep(comptime cycles: u32) void {
-    const CYCLES = 133_000_000 / 1000;
-
     var i: u32 = 0;
     while (i < (cycles)) : (i += 1) {
         asm volatile ("nop");
