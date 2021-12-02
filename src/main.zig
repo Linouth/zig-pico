@@ -24,7 +24,7 @@ pub fn main() void {
 }
 
 fn alarmCb(context: ?*c_void) void {
-    const led = @ptrCast(*gpio.Gpio, @alignCast(@alignOf(gpio.Gpio), context));
+    const led = nvic.castContext(gpio.Gpio, context);
     led.toggle();
 }
 

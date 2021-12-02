@@ -55,8 +55,6 @@ pub const Alarm = struct {
     }
 
     pub fn deinit(self: Alarm) void {
-        alarms[self.id] = null;
-
         // Disarm alarm
         self.stop();
 
@@ -64,6 +62,8 @@ pub const Alarm = struct {
         Regs.inte.bitAnd(~(@as(u4, 1) << self.id));
         nvic.disableIrq(
             @intToEnum(nvic.Irq, @enumToInt(nvic.Irq.timer_irq_0) + self.id));
+
+        alarms[self.id] = null;
     }
 
     // TODO: Check if we were quick enough with setting the alarm

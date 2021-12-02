@@ -1,5 +1,4 @@
 const std = @import("std");
-const TypeInfo = std.builtin.TypeInfo;
 
 /// Heavily inspired by https://github.com/lynaghk/svd2zig
 pub fn Reg(comptime Fields: type) type {
@@ -78,6 +77,8 @@ pub const RegConfig = struct {
     name: []const u8,
     type: type,
 };
+
+const TypeInfo = std.builtin.TypeInfo;
 
 // Sigh... Aparently creating a new struct with decls is not allowed...
 // (#6709)

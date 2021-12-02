@@ -78,6 +78,12 @@ pub fn getIPSR() Irq {
     return @intToEnum(Irq, @truncate(u5, ipsr-16));
 }
 
+/// Helper function that casts a 'c style context pointer' back into a Zig
+/// type
+pub inline fn castContext(comptime T: type, context: ?*c_void) *T {
+    return @ptrCast(*T, @alignCast(@alignOf(T), context));
+}
+
 /// Disables all interrupts and clear pending. Usefull in the debugger
 pub inline fn reset() void {
     NvicRegs.icer.write(0xffffffff);
