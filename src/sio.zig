@@ -1,5 +1,7 @@
 const pico = @import("pico.zig");
 
+// TODO: Switch to new Regs
+
 const Sio = extern struct {
     cpuid: u32,
     gpio_in: u32,

@@ -1,26 +1,7 @@
 const std = @import("std");
 const pico = @import("pico.zig");
-
-const TimerRegs = packed struct {
-    timehw: u32,
-    timelw: u32,
-    timehr: u32,
-    timelr: u32,
-    alarm0: u32,
-    alarm1: u32,
-    alarm2: u32,
-    alarm3: u32,
-    armed: u32,
-    timerawh: u32,
-    timerawl: u32,
-    dbgpause: u32,
-    pause: u32,
-    intr: u32,
-    inte: u32,
-    intf: u32,
-    ints: u32,
-};
-const timer_hw = @intToPtr(*TimerRegs, pico.TIMER_BASE);
+const nvic = @import("nvic.zig");
+const mmio = @import("mmio.zig");
 
 pub const Alarm = struct {
     const CallbackFn = fn(?*c_void) void;
@@ -42,7 +23,7 @@ pub const Alarm = struct {
     context: ?*c_void,
     mode: Mode = .unspecified,
 
-    pub fn init(id: u2, comptime callback: CallbackFn, context: ?*c_void) !*Alarm {
+    pub fn init(comptime id: u2, comptime callback: CallbackFn, context: ?*c_void) !*Alarm {
         if (alarms[id]) |_| {
             return error.AlreadyInUse;
         } else {
@@ -53,48 +34,84 @@ pub const Alarm = struct {
             };
         }
 
-        // TODO: Probably check if the irq bits are already set, and if they are
-        // it is most likely that the other core is using the alarm (or a bug)
-        // TODO: Add spinlock for when changing IRQ registers
-        //
-        // TODO: Configure IRQ
+        const irq = @intToEnum(nvic.Irq, @enumToInt(nvic.Irq.timer_irq_0) + id);
+
+        // Clear pending interrupt
+        nvic.clearIrq(irq);
+        Regs.intr.write(@as(u4, 1) << @truncate(u2, id));
+
+        // Enable interrupt
+        nvic.enableIrq(irq, 0, irqHandler);
+        Regs.inte.bitOr(@as(u4, 1) << id);
 
         return &alarms[id].?;
     }
 
-    pub fn deinit(self: Alarm) void {
-        alarms[self.id] = null;
-        // TODO: Do deinit stuff (dearm, disable irq)
+    pub fn get(id: u2) ?*Alarm {
+        if (alarms[id]) |*alarm| {
+            return alarm;
+        }
+        return null;
     }
 
+    pub fn deinit(self: Alarm) void {
+        alarms[self.id] = null;
+
+        // Disarm alarm
+        self.stop();
+
+        // Disable interrupt generation and reception
+        Regs.inte.bitAnd(~(@as(u4, 1) << self.id));
+        nvic.disableIrq(
+            @intToEnum(nvic.Irq, @enumToInt(nvic.Irq.timer_irq_0) + self.id));
+    }
+
+    // TODO: Check if we were quick enough with setting the alarm
     pub fn arm(self: *Alarm, mode: Mode) void {
         if (mode == .unspecified)
             return;
-        self.mode = mode;
 
+        self.mode = mode;
+        self.setAlarmAndArm();
+    }
+
+    pub fn stop(self: Alarm) void {
+        Regs.armed.write(@as(u4, 1) << self.id);
+    }
+
+    pub fn force(self: Alarm) void {
+        Regs.intf.bitOr(@as(u4, 1) << self.id);
+    }
+
+    fn setAlarmAndArm(self: Alarm) void {
         const curr_time = getTimeLower();
-        const next_time: u32 = switch (mode) {
+        const next_time: u32 = switch (self.mode) {
             .unspecified => return,
             .oneshot, .periodic => |delta| curr_time +% delta,
         };
 
-        // TODO: Arm alarm
-    }
-
-    pub fn stop(self: *Alarm) void {
-
+        const alarm_reg = switch (self.id) {
+            0 => Regs.alarm0,
+            1 => Regs.alarm1,
+            2 => Regs.alarm2,
+            3 => Regs.alarm3,
+        };
+        alarm_reg.write(next_time);
     }
 
     pub fn irqHandler() void {
-        // TODO: Get Alarm id
-        const id = 0;
+        const id = @enumToInt(nvic.getIPSR());
+
+        // Clear interrupt and force flag
+        const bit = @as(u4, 1) << @truncate(u2, id);
+        Regs.intr.write(bit);
+        Regs.intf.bitAnd(~bit);
 
         if (alarms[id]) |alarm| {
             alarm.callback(alarm.context);
 
-            // TODO: Check if periodic, and if it is, reset the alarm
             if (alarm.mode == .periodic) {
-
+                alarm.setAlarmAndArm();
             }
         }
     }
@@ -105,12 +122,12 @@ pub const Alarm = struct {
 ///
 /// Returns the 64bit counter from the Timer peripheral
 pub fn getTime() u64 {
-    var hi = timer_hw.timerawh;
+    var hi = Regs.timerawh.read();
 
     return blk: {
         while (true) {
-            const lo = timer_hw.timerawl;
-            const hi_next = timer_hw.timerawh;
+            const lo = Regs.timerawl.read();
+            const hi_next = Regs.timerawh.read();
             if (hi_next == hi)
                 break :blk (@as(u64, hi) << 32) | lo;
             hi = hi_next;
@@ -125,8 +142,8 @@ pub fn getTime() u64 {
 /// call it. Either use a lock, or use `getTime()` as this function prevents
 /// this issue.
 pub fn getTimeLatched() u64 {
-    const lo = timer_hw.timelr;
-    const hi = timer_hw.timehr;
+    const lo = Regs.timelr.read();
+    const hi = Regs.timehr.read();
     return (@as(u64, hi) << 32) | lo;
 }
 
@@ -134,5 +151,33 @@ pub fn getTimeLatched() u64 {
 ///
 /// Returns the lower word of the Timer counter.
 pub fn getTimeLower() u32 {
-    return timer_hw.timerawl;
+    return Regs.timerawl.read();
 }
+
+
+//
+// Registers
+//
+
+// Should be lowercase, since it is not a type; However I would like to have a
+// struct with declared variables, but that cannot be done programmatically
+// yet in zig (#6709).
+const Regs: mmio.RegisterList(pico.TIMER_BASE, &.{
+    .{ .name = "timehw", .type = u32 },
+    .{ .name = "timelw", .type = u32 },
+    .{ .name = "timehr", .type = u32 },
+    .{ .name = "timelr", .type = u32 },
+    .{ .name = "alarm0", .type = u32 },
+    .{ .name = "alarm1", .type = u32 },
+    .{ .name = "alarm2", .type = u32 },
+    .{ .name = "alarm3", .type = u32 },
+    .{ .name = "armed", .type = u32 },
+    .{ .name = "timerawh", .type = u32 },
+    .{ .name = "timerawl", .type = u32 },
+    .{ .name = "dbgpause", .type = u32 },
+    .{ .name = "pause", .type = u32 },
+    .{ .name = "intr", .type = u32 },
+    .{ .name = "inte", .type = u32 },
+    .{ .name = "intf", .type = u32 },
+    .{ .name = "ints", .type = u32 },
+}) = .{};

@@ -81,9 +81,9 @@ fn unhandledHandler() linksection(".reset") void {
     );
 }
 
-const VectorTable = packed struct {
-    const VectorNoReturn = fn() callconv(.Naked) noreturn;
-    const Vector = fn() void;
+pub const VectorTable = packed struct {
+    pub const VectorNoReturn = fn() callconv(.Naked) noreturn;
+    pub const Vector = fn() void;
 
     stack: usize,
 
@@ -138,7 +138,7 @@ const VectorTable = packed struct {
     irq31: Vector = @intToPtr(Vector, 0xfffffffa),
 };
 
-var __vectors linksection(".vector_table") = VectorTable {
+pub var __vectors linksection(".vector_table") = VectorTable {
     .stack = 0x20040000,
     //.stack = @ptrToInt(&__stack), // Compiler bug? :C
     .reset = _reset,

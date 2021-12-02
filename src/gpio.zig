@@ -5,21 +5,21 @@ pub const Gpio = struct {
     pin: u5,
     mode: Mode,
 
-    pad: *PadReg,
-    bank: *GpioReg,
+    pad: *volatile PadReg,
+    bank: *volatile GpioReg,
 
     sio: struct {
-        in: *u32,
+        in: *volatile u32,
 
-        out: *u32,
-        set: *u32,
-        clr: *u32,
-        xor: *u32,
+        out: *volatile u32,
+        set: *volatile u32,
+        clr: *volatile u32,
+        xor: *volatile u32,
 
-        oe: *u32,
-        oe_set: *u32,
-        oe_clr: *u32,
-        oe_xor: *u32
+        oe: *volatile u32,
+        oe_set: *volatile u32,
+        oe_clr: *volatile u32,
+        oe_xor: *volatile u32
     },
 
 
@@ -212,12 +212,17 @@ pub const Gpio = struct {
     }
 };
 
+//
+// Registers
+//
+// TODO: Switch to new Regs
+
 const GpioReg = packed struct {
     status: u32,
     ctrl: u32,
 };
-const bank0 = @intToPtr([*]GpioReg, pico.IO_BANK0_BASE)[0..pico.NUM_BANK0_GPIOS];
-const qspi = @intToPtr([*]GpioReg, pico.IO_QSPI_BASE)[0..pico.NUM_QSPI_GPIOS];
+const bank0 = @intToPtr([*]volatile GpioReg, pico.IO_BANK0_BASE)[0..pico.NUM_BANK0_GPIOS];
+const qspi = @intToPtr([*]volatile GpioReg, pico.IO_QSPI_BASE)[0..pico.NUM_QSPI_GPIOS];
 
 const PadReg = packed struct {
     slew_fast: u1,
@@ -228,7 +233,7 @@ const PadReg = packed struct {
     input_enable: u1,
     output_disable: u1,
 };
-const pads_bank0 = @intToPtr([*]PadReg,
+const pads_bank0 = @intToPtr([*]volatile PadReg,
     pico.PADS_BANK0_BASE+pico.PADS_BANK0_GPIO0_OFFSET)[0..pico.NUM_BANK0_GPIOS];
-const pads_qspi = @intToPtr([*]PadReg,
+const pads_qspi = @intToPtr([*]volatile PadReg,
     pico.PADS_QSPI_BASE+pico.PADS_BANK0_QSPI_OFFSET)[0..pico.NUM_QSPI_GPIOS];
