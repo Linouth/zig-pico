@@ -39,14 +39,14 @@ pub const critical_blocks = [_]Peripheral{
 };
 
 const Config = struct {
-    invert: bool = false,
-    wait: bool = false,
+    invert_input: bool = false,
+    wait_till_finished: bool = false,
 };
 
 pub fn set(comptime blocks: []const Peripheral, comptime config: Config) void {
     const mask = blk: {
         const m = generateMask(blocks);
-        const out = if (config.invert) ~m else m;
+        const out = if (config.invert_input) ~m else m;
         break :blk out;
     };
 
@@ -56,13 +56,13 @@ pub fn set(comptime blocks: []const Peripheral, comptime config: Config) void {
 pub fn clear(comptime blocks: []const Peripheral, comptime config: Config) void {
     const mask = blk: {
         const m = generateMask(blocks);
-        const out = if (config.invert) ~m else m;
+        const out = if (config.invert_input) ~m else m;
         break :blk out;
     };
 
     Regs.reset.bitAnd(~mask);
 
-    if (config.wait) {
+    if (config.wait_till_finished) {
         while (Regs.reset_done.read() & mask != mask) {}
     }
 }

@@ -99,5 +99,5 @@ const NvicRegs = struct {
     const ispr = mmio.Reg32.init(pico.PPB_BASE + pico.M0PLUS_NVIC_ISPR_OFFSET);
     const icpr = mmio.Reg32.init(pico.PPB_BASE + pico.M0PLUS_NVIC_ICPR_OFFSET);
 
-    const ipr = mmio.Reg([4]u8).initMultiple(pico.PPB_BASE + pico.M0PLUS_NVIC_IPR0_OFFSET, 8);
+    const ipr = mmio.Reg([4]u8).initMultiple(pico.PPB_BASE + pico.M0PLUS_NVIC_IPR0_OFFSET, 8, 4);
 };

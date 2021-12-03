@@ -14,11 +14,11 @@ pub fn Reg(comptime Fields: type) type {
             return Self { .raw_ptr = @intToPtr(*volatile u32, addr) };
         }
 
-        pub fn initMultiple(start_addr: u32, comptime count: usize) [count]Self {
+        pub fn initMultiple(start_addr: u32, comptime count: usize, comptime offset: usize) [count]Self {
             var regs: [count]Self = undefined;
             var i: usize = 0;
             inline while (i < count) : (i += 1) {
-                regs[i] = Self.init(start_addr + (i*4));
+                regs[i] = Self.init(start_addr + (i*offset));
             }
             return regs;
         }
@@ -32,6 +32,7 @@ pub fn Reg(comptime Fields: type) type {
         }
 
         pub fn modify(self: Self, new: anytype) void {
+            //@compileLog("Type of new: ", @typeInfo(@TypeOf(new)).Struct.fields[0].field_type);
             var curr = self.read();
             const info = @typeInfo(@TypeOf(new));
 
@@ -43,9 +44,21 @@ pub fn Reg(comptime Fields: type) type {
                     self.write(curr);
                 },
                 //.Int => {
-                //    // TODO: Bit masking maybe?
-                //    // Identical to calling 'write'
-                //    self.write(new);
+                //    const format = "Expecting argument of the following format: .{ .And = 12345 }";
+                //    if (info.Struct.fields.len != 1)
+                //        @compileError(format); 
+
+                //    const name = info.Struct.fields[0].name;
+                //    const val = @field(new, name);
+                //    const old = self.read();
+
+                //    if (std.mem.eql(u8, name, "And")) {
+                //        self.write(old & val);
+                //    } else if (std.mem.eql(u8, name, "Or")) {
+                //        self.write(old | val);
+                //    } else {
+                //        @compileError(format);
+                //    }
                 //},
                 else => {
                     @compileError("Cannot 'modify' Register with Fields type as '" ++ @typeName(Fields) ++ "'");
