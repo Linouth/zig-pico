@@ -255,7 +255,7 @@ const Intr = packed struct {
 
     fn isSet(self: *Intr, gpio: u3, trig: Trigger) bool {
         const bit = gpio * 4 + @enumToInt(trig);
-        return (self.reg & bit) > 0;
+        return (self.reg & (@as(u32, 1) << bit)) > 0;
     }
 
     fn set(self: *Intr, gpio: u3, trig: Trigger) void {
