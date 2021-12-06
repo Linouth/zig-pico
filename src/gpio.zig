@@ -200,6 +200,17 @@ const BankRegs = struct {
     ctrl: []const mmio.Reg(u32),
     pads: []const mmio.Reg(PadReg),
 
+    intr: [] const mmio.Reg(Intr),
+    proc0_inte: [] const mmio.Reg(Intr),
+    proc0_intf: [] const mmio.Reg(Intr),
+    proc0_ints: [] const mmio.Reg(Intr),
+    proc1_inte: [] const mmio.Reg(Intr),
+    proc1_intf: [] const mmio.Reg(Intr),
+    proc1_ints: [] const mmio.Reg(Intr),
+    dormant_wake_inte: [] const mmio.Reg(Intr),
+    dormant_wake_intf: [] const mmio.Reg(Intr),
+    dormant_wake_ints: [] const mmio.Reg(Intr),
+
     sio: struct {
         in: mmio.Reg32,
 
@@ -231,11 +242,54 @@ const PadReg = packed struct {
     _reserved1: u8,
 };
 
+const Intr = packed struct {
+    // NOTE: Cannot have an array of u4 or u1 due to 'padding bits' :(
+    reg: u32,
+
+    const Trigger = enum {
+        level_low,
+        level_high,
+        edge_low,
+        edge_high,
+    };
+
+    fn isSet(self: *Intr, gpio: u3, trig: Trigger) bool {
+        const bit = gpio * 4 + @enumToInt(trig);
+        return (self.reg & bit) > 0;
+    }
+
+    fn set(self: *Intr, gpio: u3, trig: Trigger) void {
+        const bit = gpio * 4 + @enumToInt(trig);
+        self.reg |= @as(u32, 1) << bit;
+    }
+
+    fn clr(self: *Intr, gpio: u3, trig: Trigger) void {
+        const bit = gpio * 4 + @enumToInt(trig);
+        self.reg &= ~(@as(u32, 1) << bit);
+    }
+
+    fn xor(self: *Intr, gpio: u3, trig: Trigger) void {
+        const bit = gpio * 4 + @enumToInt(trig);
+        self.reg ^= @as(u32, 1) << bit;
+    }
+};
+
 const bank0 = BankRegs {
     .status = &mmio.Reg(u32).initMultiple(pico.IO_BANK0_BASE, pico.NUM_BANK0_GPIOS, 8),
     .ctrl = &mmio.Reg(u32).initMultiple(pico.IO_BANK0_BASE + 4, pico.NUM_BANK0_GPIOS, 8),
     .pads = &mmio.Reg(PadReg).initMultiple(
         pico.PADS_BANK0_BASE + pico.PADS_BANK0_GPIO0_OFFSET, pico.NUM_BANK0_GPIOS, 4),
+
+    .intr = &mmio.Reg(Intr).initMultiple(pico.IO_BANK0_BASE + pico.IO_BANK0_INTR0_OFFSET, 4, 4),
+    .proc0_inte = &mmio.Reg(Intr).initMultiple(pico.IO_BANK0_BASE + pico.IO_BANK0_PROC0_INTE0_OFFSET, 4, 4),
+    .proc0_intf = &mmio.Reg(Intr).initMultiple(pico.IO_BANK0_BASE + pico.IO_BANK0_PROC0_INTF0_OFFSET, 4, 4),
+    .proc0_ints = &mmio.Reg(Intr).initMultiple(pico.IO_BANK0_BASE + pico.IO_BANK0_PROC0_INTS0_OFFSET, 4, 4),
+    .proc1_inte = &mmio.Reg(Intr).initMultiple(pico.IO_BANK0_BASE + pico.IO_BANK0_PROC1_INTE0_OFFSET, 4, 4),
+    .proc1_intf = &mmio.Reg(Intr).initMultiple(pico.IO_BANK0_BASE + pico.IO_BANK0_PROC1_INTF0_OFFSET, 4, 4),
+    .proc1_ints = &mmio.Reg(Intr).initMultiple(pico.IO_BANK0_BASE + pico.IO_BANK0_PROC1_INTS0_OFFSET, 4, 4),
+    .dormant_wake_inte = &mmio.Reg(Intr).initMultiple(pico.IO_BANK0_BASE + pico.IO_BANK0_DORMANT_WAKE_INTE0_OFFSET, 4, 4),
+    .dormant_wake_intf = &mmio.Reg(Intr).initMultiple(pico.IO_BANK0_BASE + pico.IO_BANK0_DORMANT_WAKE_INTF0_OFFSET, 4, 4),
+    .dormant_wake_ints = &mmio.Reg(Intr).initMultiple(pico.IO_BANK0_BASE + pico.IO_BANK0_DORMANT_WAKE_INTS0_OFFSET, 4, 4),
 
     .sio = .{
         .in = sio.Sio.gpio_in,
@@ -255,6 +309,17 @@ const qspi = BankRegs {
     .ctrl = &mmio.Reg(u32).initMultiple(pico.IO_QSPI_BASE + 4, pico.NUM_QSPI_GPIOS, 8),
     .pads = &mmio.Reg(PadReg).initMultiple(
         pico.PADS_QSPI_BASE + pico.PADS_QSPI_GPIO0_OFFSET, pico.NUM_QSPI_GPIOS, 4),
+
+    .intr = &mmio.Reg(Intr).initMultiple(pico.IO_QSPI_BASE + pico.IO_QSPI_INTR0_OFFSET, 4, 4),
+    .proc0_inte = &mmio.Reg(Intr).initMultiple(pico.IO_QSPI_BASE + pico.IO_QSPI_PROC0_INTE0_OFFSET, 4, 4),
+    .proc0_intf = &mmio.Reg(Intr).initMultiple(pico.IO_QSPI_BASE + pico.IO_QSPI_PROC0_INTF0_OFFSET, 4, 4),
+    .proc0_ints = &mmio.Reg(Intr).initMultiple(pico.IO_QSPI_BASE + pico.IO_QSPI_PROC0_INTS0_OFFSET, 4, 4),
+    .proc1_inte = &mmio.Reg(Intr).initMultiple(pico.IO_QSPI_BASE + pico.IO_QSPI_PROC1_INTE0_OFFSET, 4, 4),
+    .proc1_intf = &mmio.Reg(Intr).initMultiple(pico.IO_QSPI_BASE + pico.IO_QSPI_PROC1_INTF0_OFFSET, 4, 4),
+    .proc1_ints = &mmio.Reg(Intr).initMultiple(pico.IO_QSPI_BASE + pico.IO_QSPI_PROC1_INTS0_OFFSET, 4, 4),
+    .dormant_wake_inte = &mmio.Reg(Intr).initMultiple(pico.IO_QSPI_BASE + pico.IO_QSPI_DORMANT_WAKE_INTE0_OFFSET, 4, 4),
+    .dormant_wake_intf = &mmio.Reg(Intr).initMultiple(pico.IO_QSPI_BASE + pico.IO_QSPI_DORMANT_WAKE_INTF0_OFFSET, 4, 4),
+    .dormant_wake_ints = &mmio.Reg(Intr).initMultiple(pico.IO_QSPI_BASE + pico.IO_QSPI_DORMANT_WAKE_INTS0_OFFSET, 4, 4),
 
     .sio = .{
         .in = sio.Sio.gpio_hi_in,
