@@ -27,8 +27,10 @@ pub fn Reg(comptime Fields: type) type {
             return @bitCast(Fields, self.raw_ptr.*);
         }
 
+        // This seems buggy and inconsistent: https://zig.godbolt.org/z/89GbebTjq
         pub fn write(self: Self, val: Fields) void {
-            self.raw_ptr.* = @bitCast(u32, val);
+            const out = @bitCast(u32, val);
+            self.raw_ptr.* = out;
         }
 
         pub fn modify(self: Self, new: anytype) void {
@@ -43,42 +45,26 @@ pub fn Reg(comptime Fields: type) type {
                     }
                     self.write(curr);
                 },
-                //.Int => {
-                //    const format = "Expecting argument of the following format: .{ .And = 12345 }";
-                //    if (info.Struct.fields.len != 1)
-                //        @compileError(format); 
-
-                //    const name = info.Struct.fields[0].name;
-                //    const val = @field(new, name);
-                //    const old = self.read();
-
-                //    if (std.mem.eql(u8, name, "And")) {
-                //        self.write(old & val);
-                //    } else if (std.mem.eql(u8, name, "Or")) {
-                //        self.write(old | val);
-                //    } else {
-                //        @compileError(format);
-                //    }
-                //},
                 else => {
                     @compileError("Cannot 'modify' Register with Fields type as '" ++ @typeName(Fields) ++ "'");
                 },
             }
         }
 
-        // TODO: Implement these bitwise operations in 'modify'
-        pub fn bitOr(self: Self, val: u32) void {
-            if (@typeInfo(Fields) != .Int)
-                @compileError("Can only 'bitOr' Register with Fields type 'Int'");
-
-            self.raw_ptr.* |= val;
+        pub fn readRaw(self: Self) u32 {
+            return self.raw_ptr.*;
         }
 
-        pub fn bitAnd(self: Self, val: u32) void {
-            if (@typeInfo(Fields) != .Int)
-                @compileError("Can only 'bitAnd' Register with Fields type 'Int'");
+        pub fn writeRaw(self: Self, val: u32) void {
+            self.raw_ptr.* = val;
+        }
 
-            self.raw_ptr.* &= val;
+        pub fn set(self: Self, bits: u32) void {
+            self.raw_ptr.* |= bits;
+        }
+
+        pub fn clear(self: Self, bits: u32) void {
+            self.raw_ptr.* &= ~bits;
         }
     };
 }

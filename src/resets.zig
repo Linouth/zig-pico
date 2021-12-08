@@ -50,7 +50,7 @@ pub fn set(comptime blocks: []const Peripheral, comptime config: Config) void {
         break :blk out;
     };
 
-    Regs.reset.bitOr(mask);
+    Regs.reset.set(mask);
 }
 
 pub fn clear(comptime blocks: []const Peripheral, comptime config: Config) void {
@@ -60,7 +60,7 @@ pub fn clear(comptime blocks: []const Peripheral, comptime config: Config) void 
         break :blk out;
     };
 
-    Regs.reset.bitAnd(~mask);
+    Regs.reset.clear(mask);
 
     if (config.wait_till_finished) {
         while (Regs.reset_done.read() & mask != mask) {}

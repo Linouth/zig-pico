@@ -1,6 +1,10 @@
 const pico = @import("pico.zig");
 const mmio = @import("mmio.zig");
 
+pub fn getCoreNum() u1 {
+    return @truncate(u1, Sio.cpuid.read());
+}
+
 pub const Sio: mmio.RegisterList(pico.SIO_BASE, &.{
     .{ .name = "cpuid", .type = u32 },
     .{ .name = "gpio_in", .type = u32 },

@@ -42,7 +42,7 @@ pub const Alarm = struct {
 
         // Enable interrupt
         nvic.enableIrq(irq, 0, irqHandler);
-        Regs.inte.bitOr(@as(u4, 1) << id);
+        Regs.inte.set(@as(u4, 1) << id);
 
         return &alarms[id].?;
     }
@@ -59,7 +59,7 @@ pub const Alarm = struct {
         self.stop();
 
         // Disable interrupt generation and reception
-        Regs.inte.bitAnd(~(@as(u4, 1) << self.id));
+        Regs.inte.clear(@as(u4, 1) << self.id);
         nvic.disableIrq(
             @intToEnum(nvic.Irq, @enumToInt(nvic.Irq.timer_irq_0) + self.id));
 
@@ -80,7 +80,7 @@ pub const Alarm = struct {
     }
 
     pub fn force(self: Alarm) void {
-        Regs.intf.bitOr(@as(u4, 1) << self.id);
+        Regs.intf.set(@as(u4, 1) << self.id);
     }
 
     fn setAlarmAndArm(self: Alarm) void {
@@ -105,7 +105,7 @@ pub const Alarm = struct {
         // Clear interrupt and force flag
         const bit = @as(u4, 1) << @truncate(u2, id);
         Regs.intr.write(bit);
-        Regs.intf.bitAnd(~bit);
+        Regs.intf.clear(bit);
 
         if (alarms[id]) |alarm| {
             alarm.callback(alarm.context);

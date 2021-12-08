@@ -35,9 +35,9 @@ Following are systems and peripherals taken from the datasheet.
     - [ ] XOSC
     - [ ] ROSC
 - [ ] PLL
-- [ ] GPIO
+- [x] GPIO (for now, will probably redo this)
     - [x] Manual read and writes
-    - [ ] Interrupts
+    - [x] Interrupts
 - [ ] PIO
 - [ ] USB
 - [ ] UART

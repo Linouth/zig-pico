@@ -51,10 +51,11 @@ fn _reset() linksection(".reset") callconv(.Naked) noreturn {
 }
 
 pub fn panic(msg: []const u8, trace: ?*builtin.StackTrace) noreturn {
+    _ = msg;
+    _ = trace;
+
     while (true) {
         @breakpoint();
-        _ = msg;
-        _ = trace;
     }
 }
 
