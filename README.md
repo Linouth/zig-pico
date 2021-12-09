@@ -17,7 +17,7 @@ Blinky LED :D
 
 Following are systems and peripherals taken from the datasheet. 
 
-- SIO
+- [ ] SIO
     - [ ] Spinlocks
     - [ ] Integer dividers
     - [ ] Interpolators
@@ -32,9 +32,9 @@ Following are systems and peripherals taken from the datasheet.
 - [ ] Power-On State Machine
 - [x] Subsystem Resets
 - [ ] Clocks
-    - [ ] XOSC
+    - [x] XOSC
     - [ ] ROSC
-- [ ] PLL
+- [x] PLL
 - [x] GPIO (for now, will probably redo this)
     - [x] Manual read and writes
     - [x] Interrupts
