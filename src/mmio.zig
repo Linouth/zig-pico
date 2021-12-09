@@ -3,7 +3,7 @@ const std = @import("std");
 /// Heavily inspired by https://github.com/lynaghk/svd2zig
 pub fn Reg(comptime Fields: type) type {
     if (@sizeOf(Fields) != 4)
-        @compileError("Fields type has to be 'u32' in size");
+        @compileError("Fields type has to be 'u32' in size. Field: " ++ @typeName(Fields));
 
     return struct {
         raw_ptr: *volatile u32,
