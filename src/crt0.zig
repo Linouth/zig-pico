@@ -2,7 +2,9 @@ const std = @import("std");
 const builtin = std.builtin;
 
 const main = @import("main.zig");
-const systickHandler = @import("timer.zig").systickHandler;
+const nvic = @import("nvic.zig");
+const resets = @import("resets.zig");
+const clocks = @import("clocks.zig");
 
 const PPB_BASE: u32 = 0xe0000000;
 const VTOR: u32 = 0xed08;
@@ -41,6 +43,15 @@ fn _reset() linksection(".reset") callconv(.Naked) noreturn {
     // Clear bss
     const bss_size = @ptrToInt(&__bss_end) - @ptrToInt(&__bss_start);
     @memset(@ptrCast([*]u8, &__bss_start), 0, bss_size);
+
+    // Disable all interrupts
+    nvic.reset();
+
+    // Reset all peripherals, except for some critical blocks (e.g. XIP)
+    resets.set(&resets.critical_blocks, .{.invert_input = true});
+
+    // Initialize clocks
+    clocks.init();
 
     //main.main();
     @call(.{ .modifier = .never_inline }, main.main, .{});

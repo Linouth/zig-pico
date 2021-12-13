@@ -9,15 +9,7 @@ const clocks = @import("clocks.zig");
 var led: gpio.Gpio = undefined;
 
 pub fn main() void {
-    // Disable all interrupts
-    nvic.reset();
-
-    // Reset all peripherals, except for some critical blocks (e.g. XIP)
-    resets.set(&resets.critical_blocks, .{.invert_input = true});
     resets.clear(&.{ .io_bank0, .pads_bank0, .timer }, .{.wait_till_finished = true});
-
-    // Initialize clocks
-    clocks.init();
 
     gpio.setHandler(gpioCb);
 
