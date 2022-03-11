@@ -1,7 +1,6 @@
 const std = @import("std");
 
 const crt0 = @import("crt0.zig");
-const mmio = @import("mmio.zig");
 
 const chip = @import("rp2040.zig");
 const regs = chip.registers;
