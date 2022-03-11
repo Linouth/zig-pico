@@ -1,6 +1,10 @@
-const pico = @import("pico.zig");
+const std = @import("std");
+
 const crt0 = @import("crt0.zig");
 const mmio = @import("mmio.zig");
+
+const chip = @import("rp2040.zig");
+const regs = chip.registers;
 
 pub const Irq = enum {
     timer_irq_0,
@@ -36,38 +40,53 @@ pub const Irq = enum {
     irq29,
     irq30,
     irq31,
+
+    pub fn enable(comptime self: Irq, comptime priority: u2, comptime vector: ?chip.InterruptVector) void {
+        self.clear();
+
+        // Set bit in the Interrupt Set Enable Register
+        const irq_index = @enumToInt(self);
+        regs.PPB.NVIC_ISER.raw = @as(u32, 1) << irq_index;
+
+        self.setPriority(priority);
+
+        if (vector) |vec| {
+            // Convert vector table into an array of vectors for easy access
+            var vectors = @ptrCast([*]chip.InterruptVector, &crt0.__vectors.TIMER_IRQ_0);
+            vectors[irq_index] = vec;
+        }
+
+    }
+
+    pub fn disable(self: Irq) void {
+        regs.PPB.NVIC_ICER.raw = @as(u32, 1) << @enumToInt(self);
+    }
+
+    pub fn clear(self: Irq) void {
+        regs.PPB.NVIC_ICPR.raw = @as(u32, 1) << @enumToInt(self);
+    }
+
+    pub fn setPriority(comptime self: Irq, comptime priority: u2) void {
+        const index = @enumToInt(self);
+        const ipr = regs.getNumberedField(regs.PPB, "NVIC_IPR{d}", index/4);
+        const ip_name = comptime std.fmt.comptimePrint("IP_{d}", .{index});
+
+        var tmp = ipr.read();
+        @field(tmp, ip_name) = priority;
+        ipr.write(tmp);
+    }
 };
 
-pub fn enableIrq(comptime irq: Irq, comptime priority: u2, comptime vector: ?crt0.VectorTable.Vector) void {
-    const irq_ind = @enumToInt(irq);
-    clearIrq(irq);
-
-    NvicRegs.iser.write(@as(u32, 1) << irq_ind);
-
-    setPriority(irq, priority);
-
-    // TODO: Add spinlock for changing vector table
-    if (vector) |vec| {
-        var vectors = @ptrCast([*]crt0.VectorTable.Vector, &crt0.__vectors.timer_irq_0);
-        vectors[irq_ind] = vec;
-    }
-}
-
-pub fn disableIrq(irq: Irq) void {
-    NvicRegs.icer.write(@as(u32, 1) << @enumToInt(irq));
-}
-
-pub fn clearIrq(irq: Irq) void {
-    NvicRegs.icpr.write(@as(u32, 1) << @enumToInt(irq));
-}
-
-pub fn setPriority(comptime irq: Irq, comptime priority: u2) void {
-    const ind = @enumToInt(irq);
-
-    var ipr = NvicRegs.ipr[ind/4].read();
-    ipr[ind%4] = priority;
-    NvicRegs.ipr[ind/4].write(ipr);
-}
+//pub fn setPriority(comptime irq: Irq, comptime priority: u2) void {
+//    const ind = @enumToInt(irq);
+//
+//    // TODO
+//    _ = ind;
+//    _ = priority;
+//    //var ipr = NvicRegs.ipr[ind/4].read();
+//    //ipr[ind%4] = priority;
+//    //NvicRegs.ipr[ind/4].write(ipr);
+//}
 
 pub fn getIPSR() Irq {
     const ipsr: u8 = asm volatile (
@@ -80,24 +99,12 @@ pub fn getIPSR() Irq {
 
 /// Helper function that casts a 'c style context pointer' back into a Zig
 /// type
-pub inline fn castContext(comptime T: type, context: ?*c_void) *T {
+pub inline fn castContext(comptime T: type, context: ?*anyopaque) *T {
     return @ptrCast(*T, @alignCast(@alignOf(T), context));
 }
 
 /// Disables all interrupts and clear pending. Usefull in the debugger
 pub inline fn reset() void {
-    NvicRegs.icer.write(0xffffffff);
-    NvicRegs.icpr.write(0xffffffff);
+    regs.PPB.NVIC_ICER.raw = 0xffffffff;
+    regs.PPB.NVIC_ICPR.raw = 0xffffffff;
 }
-
-//
-// Registers
-//
-const NvicRegs = struct {
-    const iser = mmio.Reg32.init(pico.PPB_BASE + pico.M0PLUS_NVIC_ISER_OFFSET);
-    const icer = mmio.Reg32.init(pico.PPB_BASE + pico.M0PLUS_NVIC_ICER_OFFSET);
-    const ispr = mmio.Reg32.init(pico.PPB_BASE + pico.M0PLUS_NVIC_ISPR_OFFSET);
-    const icpr = mmio.Reg32.init(pico.PPB_BASE + pico.M0PLUS_NVIC_ICPR_OFFSET);
-
-    const ipr = mmio.Reg([4]u8).initMultiple(pico.PPB_BASE + pico.M0PLUS_NVIC_IPR0_OFFSET, 8, 4);
-};

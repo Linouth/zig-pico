@@ -22,12 +22,15 @@ SECTIONS {
         *(.text*)
     } > RAM
 
-    .rodata : {
-        *(.rodata*)
+    /*
+    .ARM.exidx : {
+        *(.ARM.exidx* .gnu.linkonce.armexidx.*)
     } > RAM
+    */
 
     . = ALIGN(4);
     .data : {
+        *(.rodata*)
         *(.data*)
     } > RAM
 

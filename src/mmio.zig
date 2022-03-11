@@ -81,29 +81,29 @@ const TypeInfo = std.builtin.TypeInfo;
 
 // Sigh... Aparently creating a new struct with decls is not allowed...
 // (#6709)
-pub fn RegisterListUnsupported(comptime entries: []const RegConfig) type {
-    var decs: [128]TypeInfo.Declaration = undefined;
-    inline for (entries) |entry, i| {
-        decs[i] = .{
-            .name = entry.name,
-            .is_pub = false,
-            .data = .{
-                .Var = Register(entry.type),
-            },
-        };
-    }
-
-    const info = TypeInfo{
-        .Struct = .{
-            .layout = .Auto,
-            .fields = &.{},
-            .decls = decs[0..entries.len],
-            .is_tuple = false,
-        }
-    };
-
-    return @Type(info);
-}
+//pub fn RegisterListUnsupported(comptime entries: []const RegConfig) type {
+//    var decs: [128]TypeInfo.Declaration = undefined;
+//    inline for (entries) |entry, i| {
+//        decs[i] = .{
+//            .name = entry.name,
+//            .is_pub = false,
+//            .data = .{
+//                .Var = Register(entry.type),
+//            },
+//        };
+//    }
+//
+//    const info = TypeInfo{
+//        .Struct = .{
+//            .layout = .Auto,
+//            .fields = &.{},
+//            .decls = decs[0..entries.len],
+//            .is_tuple = false,
+//        }
+//    };
+//
+//    return @Type(info);
+//}
 
 // Shitty workaround using fields instead of decls...
 // You need to initiate the const with default values.

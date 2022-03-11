@@ -1,5 +1,4 @@
-const pico = @import("pico.zig");
-const mmio = @import("mmio.zig");
+const regs = @import("rp2040.zig").registers;
 
 const Peripheral = enum {
     adc,
@@ -29,6 +28,7 @@ const Peripheral = enum {
     usbctrl,
 };
 
+/// List of critical peripherals that should not be reset at boot.
 pub const critical_blocks = [_]Peripheral{
     .io_qspi,
     .pads_qspi,
@@ -43,43 +43,46 @@ const Config = struct {
     wait_till_finished: bool = false,
 };
 
-pub fn set(comptime blocks: []const Peripheral, comptime config: Config) void {
+/// Sets bits for the specified peripherals. By setting
+/// `config.invert_input` to true, the bits for all peripherals except for the
+/// specified ones will be set.
+/// Setting a bit will reset the peripheral, thus disabling it.
+pub fn set(comptime peripherals: []const Peripheral, comptime config: Config) void {
     const mask = blk: {
-        const m = generateMask(blocks);
+        const m = generateMask(peripherals);
         const out = if (config.invert_input) ~m else m;
         break :blk out;
     };
 
-    Regs.reset.set(mask);
+    regs.RESETS.RESET.raw |= mask;
 }
 
-pub fn clear(comptime blocks: []const Peripheral, comptime config: Config) void {
+/// Clears bits for the specified peripherals. By setting `convert.invert_input`
+/// to true, the bits for all peripherals except for the specified ones will be
+/// cleared.
+/// Clearing a bit will enable the peripheral.
+///
+/// By setting `config.wait_till_finished` the function will hang until enabling
+/// of the specified peripherals is finished.
+pub fn clear(comptime peripherals: []const Peripheral, comptime config: Config) void {
     const mask = blk: {
-        const m = generateMask(blocks);
+        const m = generateMask(peripherals);
         const out = if (config.invert_input) ~m else m;
         break :blk out;
     };
 
-    Regs.reset.clear(mask);
+    regs.RESETS.RESET.raw &= ~mask;
 
     if (config.wait_till_finished) {
-        while (Regs.reset_done.read() & mask != mask) {}
+        while (regs.RESETS.RESET_DONE.raw & mask != mask) {}
     }
 }
 
-inline fn generateMask(comptime blocks: []const Peripheral) u32 {
+/// Generate a bitmask from a list of peripherals
+inline fn generateMask(comptime peripherals: []const Peripheral) u32 {
     comptime var mask: u32 = 0;
-    inline for (blocks) |block| {
-        mask |= @as(u32, 1) << @enumToInt(block);
+    inline for (peripherals) |peripheral| {
+        mask |= @as(u32, 1) << @enumToInt(peripheral);
     }
     return mask;
 }
-
-//
-// Registers
-//
-const Regs = struct {
-    const reset = mmio.Reg32.init(pico.RESETS_BASE);
-    const wdsel = mmio.Reg32.init(pico.RESETS_BASE + pico.RESETS_WDSEL_OFFSET);
-    const reset_done = mmio.Reg32.init(pico.RESETS_BASE + pico.RESETS_RESET_DONE_OFFSET);
-};

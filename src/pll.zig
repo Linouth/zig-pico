@@ -1,6 +1,6 @@
-const mmio = @import("mmio.zig");
-const pico = @import("pico.zig");
 const resets = @import("resets.zig");
+
+const regs = @import("rp2040.zig").registers;
 
 const Pll = enum {
     sys,
@@ -12,11 +12,12 @@ pub fn init(
     comptime refdiv: usize,
     comptime vco_freq: usize,
     comptime post_div1: usize,
-    comptime post_div2: usize
+    comptime post_div2: usize,
+    comptime clock_mhz: usize,
 ) void {
-    const regs = switch (pll) {
-        .sys => pll_sys,
-        .usb => pll_usb,
+    const r = switch (pll) {
+        .sys => regs.PLL_SYS,
+        .usb => regs.PLL_USB,
     };
 
     if (vco_freq < 400_000_000 or vco_freq > 1600_000_000)
@@ -25,7 +26,7 @@ pub fn init(
     if (post_div1 < 1 or post_div1 > 7 or post_div2 < 1 or post_div2 > 7)
         @compileError("PLL: post_divn can only range from 1 to 7");
 
-    const ref_freq = pico.XOSC_MHZ * 1_000_000 / refdiv;
+    const ref_freq = clock_mhz * 1_000_000 / refdiv;
     const fbdiv = vco_freq / ref_freq;
 
     if (fbdiv < 16 or fbdiv > 320)
@@ -54,73 +55,28 @@ pub fn init(
     resets.clear(&.{ reset_block }, .{ .wait_till_finished = true });
 
     // Configure dividers
-    regs.cs.modify(.{
-        .refdiv = refdiv,
+    r.CS.modify(.{
+        .REFDIV = refdiv,
     });
-    regs.fbdiv_int.write(fbdiv);
+    r.FBDIV_INT.raw = fbdiv;
 
     // Turn on PLL
-    regs.pwr.modify(.{
-        .pd = 0,
-        .vcopd = 0,
+    r.PWR.modify(.{
+        .PD = 0,
+        .VCOPD = 0,
     });
 
     // Wait till VCO has locked onto the requested frequency
-    while (regs.cs.read().lock != 1) {}
+    while (r.CS.read().LOCK != 1) {}
 
     // Configure post divider
-    regs.prim.modify(.{
-        .postdiv1 = post_div1,
-        .postdiv2 = post_div2,
+    r.PRIM.modify(.{
+        .POSTDIV1 = post_div1,
+        .POSTDIV2 = post_div2,
     });
 
     // Turn on post divider
-    regs.pwr.modify(.{
-        .postdivpd = 0,
+    r.PWR.modify(.{
+        .POSTDIVPD = 0,
     });
 }
-
-//
-// Registers
-//
-
-const PwrReg = packed struct {
-    pd: u1,
-    _reserved0: u1,
-    dsmpd: u1,
-    postdivpd: u1,
-    _reserved1: u1,
-    vcopd: u1,
-    _reserved3: u26,
-};
-
-const CsReg = packed struct {
-    refdiv: u6,
-    _reserved0: u2,
-    bypass: u1,
-    _reserved1: u7,
-    _reserved2: u15,
-    lock : u1,
-};
-
-const PrimReg = packed struct {
-    _reserved0: u12,
-    postdiv2: u3,
-    _reserved1: u1,
-    postdiv1: u3,
-    _reserved2: u13,
-};
-
-const pll_sys: mmio.RegisterList(pico.PLL_SYS_BASE, &.{
-    .{ .name = "cs", .type = CsReg },
-    .{ .name = "pwr", .type = PwrReg },
-    .{ .name = "fbdiv_int", .type = u32 },
-    .{ .name = "prim", .type = PrimReg },
-}) = .{};
-
-const pll_usb: mmio.RegisterList(pico.PLL_USB_BASE, &.{
-    .{ .name = "cs", .type = CsReg },
-    .{ .name = "pwr", .type = PwrReg },
-    .{ .name = "fbdiv_int", .type = u32 },
-    .{ .name = "prim", .type = PrimReg },
-}) = .{};

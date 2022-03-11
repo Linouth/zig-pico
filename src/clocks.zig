@@ -1,7 +1,7 @@
 const xosc = @import("xosc.zig");
-const mmio = @import("mmio.zig");
-const pico = @import("pico.zig");
 const pll = @import("pll.zig");
+
+const regs = @import("rp2040.zig").registers;
 
 const Clock = enum {
     gpout0,
@@ -16,37 +16,38 @@ const Clock = enum {
     rtc,
 };
 
-pub fn init() void {
+// TODO: Add ability to set custom clock configurations
+pub fn init(comptime clock_mhz: usize) void {
     // Disable resus for sys clock
-    clock_regs.sys_resus_ctrl.write(0);
+    regs.CLOCKS.CLK_SYS_RESUS_CTRL.raw = 0;
 
-    xosc.init(pico.XOSC_MHZ * 1_000_000 / 1000);
+    xosc.init(clock_mhz * 1_000_000 / 1000);
 
     // Switch both sys and ref away from aux clocks before touchting PLLs
-    clock_regs.sys_ctrl.modify(.{
-        .src = 0,
+    regs.CLOCKS.CLK_SYS_CTRL.modify(.{
+        .SRC = 0,
     });
-    while (clock_regs.sys_selected.read() != 1) {}
+    while (regs.CLOCKS.CLK_SYS_SELECTED.* != 1) {}
 
-    clock_regs.ref_ctrl.modify(.{
-        .src = 0,
+    regs.CLOCKS.CLK_REF_CTRL.modify(.{
+        .SRC = 0,
     });
-    while (clock_regs.ref_selected.read() != 1) {}
+    while (regs.CLOCKS.CLK_REF_SELECTED.* != 1) {}
 
     // The PLL configuration below is taken directly from the pico-sdk
     // Configure PLLs
     //                   REF     FBDIV VCO            POSTDIV
     // PLL SYS: 12 / 1 = 12MHz * 125 = 1500MHZ / 6 / 2 = 125MHz
     // PLL USB: 12 / 1 = 12MHz * 40  = 480 MHz / 5 / 2 =  48MHz
-    pll.init(.sys, 1, 1500_000_000, 6, 2);
-    pll.init(.usb, 1, 480_000_000, 5, 2);
+    pll.init(.sys, 1, 1500_000_000, 6, 2, clock_mhz);
+    pll.init(.usb, 1, 480_000_000, 5, 2, clock_mhz);
     // TODO: Would be cool to have the functionality of the 'vcocalc.py' script
     // built into here as comptime.
 
     configure(.ref, .{
         .src = 0x2,
-        .src_freq = pico.XOSC_MHZ * 1_000_000,
-        .freq = pico.XOSC_MHZ * 1_000_000,
+        .src_freq = clock_mhz * 1_000_000,
+        .freq = clock_mhz * 1_000_000,
     });
 
     configure(.sys, .{
@@ -98,24 +99,41 @@ fn configure(comptime clock: Clock, comptime conf: ClockConf) void {
     // Div reg is a fixed-point number (24.8)
     const div: u32 = (@as(u64, conf.src_freq) << 8) / conf.freq;
 
-    const ctrl = @field(clock_regs, @tagName(clock) ++ "_ctrl");
-    const selected = @field(clock_regs, @tagName(clock) ++ "_selected");
+    //const ctrl = @field(clock_regs, @tagName(clock) ++ "_ctrl");
+    //const selected = @field(clock_regs, @tagName(clock) ++ "_selected");
+
+    const clock_reg_prefixes = .{
+        "CLK_GPOUT0",
+        "CLK_GPOUT1",
+        "CLK_GPOUT2",
+        "CLK_GPOUT3",
+        "CLK_REF",
+        "CLK_SYS",
+        "CLK_PERI",
+        "CLK_USB",
+        "CLK_ADC",
+        "CLK_RTC",
+    };
+
+    const prefix = clock_reg_prefixes[@enumToInt(clock)];
+    const ctrl = @field(regs.CLOCKS, prefix ++ "_CTRL");
+    const selected = @field(regs.CLOCKS, prefix ++ "_SELECTED");
 
     // Disable clock, or set it to base glitchess clock
     switch (clock) {
         // Glitchless
         .ref, .sys => {
             ctrl.modify(.{
-                .src = 0,
+                .SRC = 0,
             });
 
-            while (selected.read() != 1) {}
+            while (selected.* != 1) {}
         },
 
         // The rest
         else => {
             ctrl.modify(.{
-                .enable = 0,
+                .ENABLE = 0,
             });
 
             // Wait for 3 cycles of the target clock speed for the clock to
@@ -136,100 +154,29 @@ fn configure(comptime clock: Clock, comptime conf: ClockConf) void {
     // Set aux src if specified
     if (conf.auxsrc) |auxsrc| {
         ctrl.modify(.{
-            .auxsrc = auxsrc,
+            .AUXSRC = auxsrc,
         });
     }
 
     // Set glitchless src if specified, and wait till it has switched
     if (conf.src) |src| {
         ctrl.modify(.{
-            .src = src,
+            .SRC = src,
         });
 
-        while (selected.read() != (@as(u32, 1) << src)) {}
+        while (selected.* != (@as(u32, 1) << src)) {}
     }
 
     // Enable clock again (only does something on aux clocks)
-    ctrl.modify(.{
-        .enable = 1,
-    });
+    switch (clock) {
+        .ref, .sys => {},
+        else => {
+            ctrl.modify(.{
+                .ENABLE = 1,
+            });
+        },
+    }
 
     // Set divider
-    @field(clock_regs, @tagName(clock) ++ "_div").write(div);
+    @field(regs.CLOCKS, prefix ++ "_DIV").raw = div;
 }
-
-//
-// Registers
-//
-
-const Ctrl = packed struct {
-    src: u2,
-    _reserved0: u3,
-    auxsrc: u4,
-    _reserved1: u1,
-    kill: u1,
-    enable: u1,
-    dc50: u1,
-    _reserved2: u3,
-    phase: u2,
-    _reserved3: u2,
-    nudge: u1,
-    _reserved4: u11,
-};
-
-const clock_regs: mmio.RegisterList(pico.CLOCKS_BASE, &.{
-    .{ .name = "gpout0_ctrl", .type = Ctrl },
-    .{ .name = "gpout0_div", .type = u32 },
-    .{ .name = "gpout0_selected", .type = u32 },
-    .{ .name = "gpout1_ctrl", .type = Ctrl },
-    .{ .name = "gpout1_div", .type = u32 },
-    .{ .name = "gpout1_selected", .type = u32 },
-    .{ .name = "gpout2_ctrl", .type = Ctrl },
-    .{ .name = "gpout2_div", .type = u32 },
-    .{ .name = "gpout2_selected", .type = u32 },
-    .{ .name = "gpout3_ctrl", .type = Ctrl },
-    .{ .name = "gpout3_div", .type = u32 },
-    .{ .name = "gpout3_selected", .type = u32 },
-    .{ .name = "ref_ctrl", .type = Ctrl },
-    .{ .name = "ref_div", .type = u32 },
-    .{ .name = "ref_selected", .type = u32 },
-    .{ .name = "sys_ctrl", .type = Ctrl },
-    .{ .name = "sys_div", .type = u32 },
-    .{ .name = "sys_selected", .type = u32 },
-    .{ .name = "peri_ctrl", .type = Ctrl },
-    .{ .name = "peri_div", .type = u32 },
-    .{ .name = "peri_selected", .type = u32 },
-    .{ .name = "usb_ctrl", .type = Ctrl },
-    .{ .name = "usb_div", .type = u32 },
-    .{ .name = "usb_selected", .type = u32 },
-    .{ .name = "adc_ctrl", .type = Ctrl },
-    .{ .name = "adc_div", .type = u32 },
-    .{ .name = "adc_selected", .type = u32 },
-    .{ .name = "rtc_ctrl", .type = Ctrl },
-    .{ .name = "rtc_div", .type = u32 },
-    .{ .name = "rtc_selected", .type = u32 },
-
-    .{ .name = "sys_resus_ctrl", .type = u32 },
-    .{ .name = "sys_resus_status", .type = u32 },
-
-    .{ .name = "fc0_ref_khz", .type = u32 },
-    .{ .name = "fc0_min_khz", .type = u32 },
-    .{ .name = "fc0_max_khz", .type = u32 },
-    .{ .name = "fc0_delay", .type = u32 },
-    .{ .name = "fc0_interval", .type = u32 },
-    .{ .name = "fc0_src", .type = u32 },
-    .{ .name = "fc0_status", .type = u32 },
-    .{ .name = "fc0_result", .type = u32 },
-
-    .{ .name = "wake_en0", .type = u32 },
-    .{ .name = "wake_en1", .type = u32 },
-    .{ .name = "sleep_en0", .type = u32 },
-    .{ .name = "sleep_en1", .type = u32 },
-    .{ .name = "enabled0", .type = u32 },
-    .{ .name = "enabled1", .type = u32 },
-
-    .{ .name = "intr", .type = u32 },
-    .{ .name = "inte", .type = u32 },
-    .{ .name = "intf", .type = u32 },
-    .{ .name = "ints", .type = u32 },
-}) = .{};

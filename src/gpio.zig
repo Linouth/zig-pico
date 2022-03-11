@@ -271,6 +271,7 @@ inline fn irqHelper(bank: Gpio.Bank) void {
             .proc1 => bank0.proc1_ints,
             .dormant_wake => unreachable,
         };
+        _ = ints;
 
         const triggers = @truncate(u4, bank0.proc0_ints[pin/8].read() >> (4 * (pin%8)));
 

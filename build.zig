@@ -20,8 +20,7 @@ pub fn build(b: *std.build.Builder) void {
     //exe.addAssemblyFile("src/crt0.S");
     exe.setTarget(target);
     exe.setBuildMode(mode);
-    exe.addSystemIncludeDir("inc");
-    exe.setLinkerScriptPath("simple.ld");
+    exe.setLinkerScriptPath(.{ .path = "simple.ld" });
     exe.install();
 
     const uf2_cmd = b.addSystemCommand(&.{"elf2uf2"});
