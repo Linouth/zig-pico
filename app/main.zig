@@ -1,15 +1,15 @@
 const std = @import("std");
 
-//const gpio = @import("gpio.zig");
-const timer = @import("timer.zig");
-const nvic = @import("nvic.zig");
-const resets = @import("resets.zig");
-//const clocks = @import("clocks.zig");
-
-const io = @import("io.zig");
-
-const chip = @import("rp2040.zig");
+const pico = @import("pico");
+const timer = pico.timer;
+const nvic = pico.nvic;
+const resets = pico.resets;
+const io = pico.io;
+const chip = pico.chip;
 const regs = chip.registers;
+
+const pio = @import("pio-bytecode");
+
 
 var led: io.Gpio = undefined;
 
@@ -21,11 +21,11 @@ pub fn main() void {
     var gp7_pin = io.Pin.init(7, .bank0).configure(.{});
     gp7_pin.irqConfig(.proc0, .{ .edge_high = true });
 
-    var alarm = timer.Alarm.init(0, alarmCb, &led) catch unreachable;
-    alarm.arm(.{ .periodic = 1 * 1000 * 1000 });
-
     const led_pin = io.Pin.init(16, .bank0).configure(.{});
     led = io.Gpio.init(led_pin).configure(true);
+
+    var alarm = timer.Alarm.init(0, alarmCb, &led) catch unreachable;
+    alarm.arm(.{ .periodic = 1 * 1000 * 1000 });
 
     while (true) {
         //regs.SIO.GPIO_OUT_XOR.raw = @as(u32, 1) << 16;
@@ -35,10 +35,8 @@ pub fn main() void {
 }
 
 fn alarmCb(context: ?*anyopaque) void {
-    //const l = nvic.castContext(gpio.Gpio, context);
-    //l.toggle();
-    _ = context;
-    led.toggle();
+    const l = nvic.castContext(io.Gpio, context);
+    l.toggle();
 }
 //
 //fn gpioCb(pin: gpio.Gpio, triggers: gpio.Intr.TriggersBitfield) void {

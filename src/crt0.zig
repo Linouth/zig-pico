@@ -4,10 +4,11 @@ const regs = chip.registers;
 
 const builtin = std.builtin;
 
-const main = @import("main.zig");
 const nvic = @import("nvic.zig");
 const resets = @import("resets.zig");
 const clocks = @import("clocks.zig");
+
+const app = @import("app");
 
 extern var __stack: anyopaque;
 
@@ -56,7 +57,7 @@ fn _reset() linksection(".reset") callconv(.Naked) noreturn {
     clocks.init(12);
 
     //main.main();
-    @call(.{ .modifier = .never_inline }, main.main, .{});
+    @call(.{ .modifier = .never_inline }, app.main, .{});
 
     while (true) {
         @breakpoint();

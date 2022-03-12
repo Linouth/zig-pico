@@ -23,7 +23,11 @@ pub const Alarm = struct {
     context: ?*anyopaque,
     mode: Mode = .unspecified,
 
-    pub fn init(comptime id: u2, comptime callback: CallbackFn, context: ?*anyopaque) !*Alarm {
+    pub fn init(
+        comptime id: u2,
+        callback: CallbackFn,
+        context: ?*anyopaque
+    ) !*Alarm {
         if (alarms[id]) |_| {
             return error.AlreadyInUse;
         } else {

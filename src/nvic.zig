@@ -76,17 +76,6 @@ pub const Irq = enum {
     }
 };
 
-//pub fn setPriority(comptime irq: Irq, comptime priority: u2) void {
-//    const ind = @enumToInt(irq);
-//
-//    // TODO
-//    _ = ind;
-//    _ = priority;
-//    //var ipr = NvicRegs.ipr[ind/4].read();
-//    //ipr[ind%4] = priority;
-//    //NvicRegs.ipr[ind/4].write(ipr);
-//}
-
 pub fn getIPSR() Irq {
     const ipsr: u8 = asm volatile (
         "mrs r0, ipsr"
