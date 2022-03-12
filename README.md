@@ -1,15 +1,35 @@
-# Zig running on a Pico
+# zig-pico - RP2040/Pico SDK for Zig
 
-A playground for Zig running on a Pico (the RP2040 chip).
-
-At first I was trying to get the pico-sdk working with Zig but that seems to be
-quite the challenge as it is not even compatible with clang yet. I might combine
-some parts of the SDK, the 'hardware', register and bootloader parts.
+This framework is for writing zig applications for the Pico microcontroller
+(RP2040). It is far from finished but can be a great starting point for your own
+projects. The project is in active development so anyting can change still. Any
+help would also be appreciated.
 
 Right now it only runs from RAM, no QSPI flash support (boot-stage2) has been
 implemented yet.
 
-Blinky LED :D
+## Usage
+Currently you can build your own application by using a `build.zig` file like~
+```
+const std = @import("std");
+const pico = @import("libs/zig-pico/build.zig");
+
+pub fn build(b: *std.build.Builder) !void {
+    const mode = b.standardReleaseOptions();
+
+    const pico_exe = pico.PicoExe.init(b, "myproject", "src/main.zig");
+    const exe = pico_exe.exe;
+    exe.setBuildMode(mode);
+    exe.install();
+}
+```
+For flashing you have to convert the elf file to a uf2 file manually (with the
+uf2 tool from the pico-sdk repo) and copy it to the pico mass storage drive. You
+could also use the picoboot tool for flashing.
+
+Currently I mostly use a gdb session with the swd interface for flashing.
+
+In the future this will be done with the zig build system itself.
 
 ## Progress
 
@@ -34,8 +54,8 @@ Following are systems and peripherals taken from the datasheet.
 - [ ] Clocks
     - [x] XOSC
     - [ ] ROSC
-- [x] PLL
-- [x] GPIO (for now, will probably redo this)
+- [x] PLL ❕
+- [x] GPIO ❕
     - [x] Manual read and writes
     - [x] Interrupts
 - [ ] PIO
@@ -49,20 +69,23 @@ Following are systems and peripherals taken from the datasheet.
 - [ ] ADC and Temperatue Sensor
 - [ ] SSI
 
+Peripherals marked with ❕ are working, but could use some improvements.
+
 ### General TODOs
 
 Some general TODOs. There are more TODOs sprinkled throughout the code.
 
 - [ ] Figure out how to use the set of functions provided in the Bootrom.
-  (float and double operations, memory operations, and more)
+  (float and double operations, memory operations, and more).
 - [ ] Find a way to determine at compile time which modules are used, and add
   initialization code for these modules to the reset sequence.
 - [ ] Implement error handler in `crt0.zig`
-- [ ] Add a boot-stage2 bootloader
+- [ ] Add a boot-stage2 bootloader.
+- [ ] Add on demand compilation (and caching) for the picoboot, pioasm and uf2
+  tools in the pico-sdk.
 
 ## Notes
 
 - All peripherals are put in 'reset' state after a hard reset. You cannot write
   to their registers while in the reset state. First set the 'RESETS' register
   to enable the peripherals you need.
-  (This took too long to figure out...)
